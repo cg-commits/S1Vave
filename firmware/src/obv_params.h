@@ -164,7 +164,7 @@ static const pdef_t PDEF[NPARAM] = {
     [P_CHOP_COMB]   = {"COMB",    31,  0,           K_COMB,    104},
 
     /* FILTER */
-    [P_CUTOFF]      = {"CUTOFF",  127, 85,          K_CUT,     74},
+    [P_CUTOFF]      = {"CUTOFF",  127, 49,          K_CUT,     74},
     [P_RESO]        = {"RESO",    127, 25,          K_NUM,     71},
     [P_FENV_AMT]    = {"ENV AMT", 127, 0,           K_NUM,     24},
     [P_FLFO_AMT]    = {"FLT LFO", 127, 0,           K_NUM,     25},
