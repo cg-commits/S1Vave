@@ -474,9 +474,11 @@ static void param_value(char *s, uint32_t p, uint32_t v)   /* <= 7 characters */
         break;
     case K_PCT: fmt_u(s, (v * 100u + 63u) / 127u); scat(s, "%"); break;
     case K_CUT: {
-        uint32_t semi = (uint32_t)CUTOFF_TAPER[v & 127u] >> 8;
+        uint32_t cut = CUTOFF_TAPER[v & 127u], semi = cut >> 8;
         if (semi > 136u) semi = 136u;
         uint32_t hz = CUT_HZ[semi];
+        if (semi < 136u)                        /* between semitones, as svf_coef does */
+            hz += ((CUT_HZ[semi + 1u] - hz) * (cut & 255u)) >> 8;
         if (hz < 10000u) { fmt_u(s, hz); scat(s, "Hz"); }
         else { fmt_u(s, hz / 1000u); scat(s, "."); fmt_u(t, (hz / 100u) % 10u); scat(s, t); scat(s, "k"); }
     } break;

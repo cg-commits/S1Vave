@@ -62,11 +62,10 @@ def main(path):
             x1, y1 = cut_pts[i + 1]
             if x0 <= x <= x1:
                 t = (x - x0) / (x1 - x0)
-                t = t * t * (3 - 2 * t)  # smoothstep monotonic interpolation
-                return y0 + t * (y1 - y0)
+                return y0 + t * (y1 - y0)  # linear in semitones: no flat spots at the measured points
         return cut_pts[-1][1]
-    # Roland S-1 hardware-calibrated Cutoff Taper (power 3.60 curve up to 136.0 semitones = 20.0 kHz)
-    cut_taper_warm = [int(round(256 * (10.0 + 126.0 * ((v / 127.0) ** 3.60)))) for v in range(128)]
+    # Roland S-1 hardware-calibrated Cutoff Taper: the measured points above (10..136 semitones = 14.6 Hz..20.0 kHz)
+    cut_taper_warm = [int(round(256 * interp_cut(v))) for v in range(128)]
     L += arr("CUTOFF_TAPER", "uint16_t", cut_taper_warm, 8)
     L += arr("CUTOFF_TAPER_WARM", "uint16_t", cut_taper_warm, 8)
 
