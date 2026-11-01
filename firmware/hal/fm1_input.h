@@ -60,6 +60,7 @@
 #define FM1_SETTLE_US 10u
 #endif
 #define FM1_REST_FRAMES 900u      /* ~1 s still off the detent state: that is the detent (power-on) */
+#define FM1_FAST_FRAMES 32u       /* a click within ~35 ms of the last one, same way: a fast turn (fm1_enc_take_fast) */
 #define FM1_NCOL 11u
 #define FM1_NKEY 41u              /* ids: 0..13 buttons, 14..40 note keys */
 #define FM1_NENC 7u
@@ -97,6 +98,9 @@ static volatile struct {
     uint16_t enc_still[FM1_NENC]; /* frames since the last state change */
     int8_t enc_sub[FM1_NENC];    /* net transitions since the last rest state */
     int16_t enc_steps[FM1_NENC]; /* + = clockwise */
+    int16_t enc_fast[FM1_NENC];  /* extra steps of fast clicks (x3 in all), for fm1_enc_take_fast */
+    uint32_t enc_t[FM1_NENC];    /* the frame of the last click */
+    int8_t enc_dir[FM1_NENC];    /* its direction */
     uint32_t frames;
 } fm1_in;
 static uint8_t fm1_led[FM1_NCOL];
@@ -276,7 +280,14 @@ static void fm1__frame(void)
         if (cur == fm1_in.enc_rest[e]) {           /* back on the detent: whole cycles, a lost transition */
             int32_t n = *sub < 0 ? -*sub : *sub;   /* or two forgiven (one click = 4 transitions) */
             n = n >= 2 ? (n + 2) / 4 : 0;
-            fm1_in.enc_steps[e] = (int16_t)(fm1_in.enc_steps[e] + (*sub < 0 ? -n : n));
+            if (n) {                               /* fast: timed here, not by how many the app finds waiting */
+                int32_t s = *sub < 0 ? -n : n;
+                if (fm1_in.frames - fm1_in.enc_t[e] < FM1_FAST_FRAMES && (s < 0) == (fm1_in.enc_dir[e] < 0))
+                    fm1_in.enc_fast[e] = (int16_t)(fm1_in.enc_fast[e] + 2 * s);
+                fm1_in.enc_t[e] = fm1_in.frames;
+                fm1_in.enc_dir[e] = (int8_t)(s < 0 ? -1 : 1);
+                fm1_in.enc_steps[e] = (int16_t)(fm1_in.enc_steps[e] + s);
+            }
             *sub = 0;
         }
     }
@@ -324,13 +335,17 @@ static void fm1_input_tick(void)
  * re-enables interrupts unconditionally) */
 static inline uint32_t fm1__lock(void)
 {
+#ifndef FM1_INPUT_HOST                             /* (tests/enc_test.c: no interrupts on the host) */
     __asm__ volatile("cli" ::: "memory");
+#endif
     return 0;
 }
 static inline void fm1__unlock(uint32_t v)
 {
     (void)v;
+#ifndef FM1_INPUT_HOST
     __asm__ volatile("csync\n\tsti" ::: "memory");
+#endif
 }
 
 /* detent steps turned since the last call, + = clockwise */
@@ -339,6 +354,18 @@ static int32_t fm1_enc_take(uint32_t e)
     uint32_t k = fm1__lock();
     int32_t s = fm1_in.enc_steps[e];
     fm1_in.enc_steps[e] = 0;
+    fm1_in.enc_fast[e] = 0;
+    fm1__unlock(k);
+    return s;
+}
+
+/* the same, a fast click counting 3 (FM1_FAST_FRAMES apart or less, the same way) */
+static int32_t fm1_enc_take_fast(uint32_t e)
+{
+    uint32_t k = fm1__lock();
+    int32_t s = fm1_in.enc_steps[e] + fm1_in.enc_fast[e];
+    fm1_in.enc_steps[e] = 0;
+    fm1_in.enc_fast[e] = 0;
     fm1__unlock(k);
     return s;
 }

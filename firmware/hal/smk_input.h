@@ -636,6 +636,13 @@ static int32_t fm1_enc_take(uint32_t e)
     return s;
 }
 
+/* as the FM-1's (hal/fm1_input.h); here a fast turn is still two or more steps waiting */
+static int32_t fm1_enc_take_fast(uint32_t e)
+{
+    int32_t s = fm1_enc_take(e);
+    return s > 1 || s < -1 ? s * 3 : s;
+}
+
 static uint32_t fm1_input_edges(uint32_t *released)
 {
     uint32_t k = fm1__lock();

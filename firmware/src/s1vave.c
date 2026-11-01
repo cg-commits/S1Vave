@@ -1744,6 +1744,30 @@ static void app_sysex(uint32_t cmd, const uint8_t *body, uint32_t len)
     }
 }
 
+static void knob_param(uint32_t p, int32_t e)    /* a knob on a sound parameter */
+{
+    int32_t step = PDEF[p].max >= 100 ? 2 : 1;
+    set_param(p, (int32_t)ed_patch(p)->v[p] + e * step);
+    if (p == P_POLY_MODE || p == P_CHO_MODE || p == P_DLY_LVL || p == P_REV_LVL) dirty_tags = 1;
+    dirty_hdr = 1;
+}
+
+/* while the screen draws: the knobs that only set a sound parameter (no layer, sequencer or special page; those wait
+ * for the main loop), so the sound follows a fast turn at once and the screen catches up */
+static void knobs_idle(void)
+{
+    uint32_t k;
+    if (layer || seq_shown() || is_seq_page(page) || page == PG_GLOBAL || page == PG_OSC_DRAW || page == PG_OSC_CHOP ||
+        page == PG_ARP || page == PG_ARP_CFG)
+        return;
+    for (k = 0; k < 4u; k++) {
+        int32_t p = PAGE[page].p[k], e;
+        if (p < 0 || (e = fm1_enc_take_fast(ENC_KNOB1 + k)) == 0) continue;
+        knob_param((uint32_t)p, e);
+        dirty_page = 1;
+    }
+}
+
 static void app_idle(void)                      /* lcd.c while a strip goes out, ui_page between the knobs: the notes */
 {
     static uint32_t busy;
@@ -1751,6 +1775,7 @@ static void app_idle(void)                      /* lcd.c while a strip goes out,
     busy = 1;
     keys_in(1);
     midi_in(1);
+    knobs_idle();
     busy = 0;
 }
 
@@ -2134,8 +2159,7 @@ static void app_main(void)
         }
         for (k = 0; k < 4u; k++) {
             int32_t p = PAGE[page].p[k];
-            if ((e = fm1_enc_take(ENC_KNOB1 + k)) == 0) continue;
-            if (e > 1 || e < -1) e *= 3;        /* a fast turn goes further */
+            if ((e = fm1_enc_take_fast(ENC_KNOB1 + k)) == 0) continue;   /* (a fast turn goes further: x3) */
             if (page == PG_GLOBAL && !layer && !SMK_PAD_HELD) {   /* (a held layer has the knobs, on every page) */
                 if (k == 0) { set.tempo = (uint8_t)clampi(set.tempo + e, 40, 240); ctl_tempo = set.tempo; pat.tempo = set.tempo; }
                 else if (k == 1) set.click = (uint8_t)clampi((int32_t)(set.click % NCLICK) + (e > 0 ? 1 : -1), 0, NCLICK - 1);
@@ -2204,12 +2228,8 @@ static void app_main(void)
                 layer_used = 1;
                 seq_turn(k, e);
                 dirty_steps = 1;
-            } else if (p >= 0) {
-                int32_t step = PDEF[p].max >= 100 ? 2 : 1;
-                set_param((uint32_t)p, (int32_t)ed_patch((uint32_t)p)->v[p] + e * step);
-                if (p == P_POLY_MODE || p == P_CHO_MODE || p == P_DLY_LVL || p == P_REV_LVL) dirty_tags = 1;
-                dirty_hdr = 1;
-            }
+            } else if (p >= 0)
+                knob_param((uint32_t)p, e);
             dirty_page = 1;
         }
 
