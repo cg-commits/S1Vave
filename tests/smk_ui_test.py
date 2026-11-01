@@ -106,7 +106,7 @@ def main():
     check("FADER BANK: bank B, nothing moved yet", st["bank"] == "1" and st["cho"] == st0["cho"] and st["master"] == "724",
           st)
     st = state(d, 4100)
-    check("bank B: CHORUS mix, MASTER (fader 4 back down to 64)", st["cho"] == "120" and st["master"] == "515" and
+    check("bank B: CHORUS mode (0..4: fader 120 -> 4), MASTER (fader 4 back down to 64)", st["cho"] == "4" and st["master"] == "515" and
           st["cutoff"] == "100", st)
     st = state(d, 4400)
     check("back to A: CUTOFF follows fader 1 again", st["bank"] == "0" and st["cutoff"] == "30", st)
