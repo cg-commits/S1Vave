@@ -2382,7 +2382,7 @@ static void app_main(void)
         if (seq_shown() || rec) {               /* the sequencer's strip instead of the scope */
             if (ui_seq_ticks != ticks_seen) { ticks_seen = ui_seq_ticks; dirty_steps = 1; }
             if (dirty_steps && fm1_ms - t_steps >= 30u) { dirty_steps = 0; t_steps = fm1_ms; draw_steps(); }
-        } else if (scope_state == 3u && fm1_ms - t_scope >= 50u) {
+        } else if (scope_state == 3u && fm1_ms - t_scope >= 80u && !dirty_page && !dirty_hdr) {   /* knobs first */
             uint32_t v, best = 0, bl = 0;
             t_scope = fm1_ms;
             draw_scope();
