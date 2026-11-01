@@ -201,9 +201,43 @@ static void ui_header(uint32_t prog, const uint8_t *name, uint32_t edited, const
 }
 
 typedef struct { const char *label; char value[12]; int32_t v, max, bip, present; } knob_view_t;
+static int ui_str_eq(const char *a, const char *b) { while (*a && *a == *b) a++, b++; return *a == *b; }
+static void ui_str_cpy(char *d, const char *s, uint32_t max) { uint32_t i = 0; while (s[i] && i + 1u < max) { d[i] = s[i]; i++; } d[i] = 0; }
+
+static int knob_same(const knob_view_t *a, const knob_view_t *b)
+{
+    if (a->present != b->present) return 0;
+    return !a->present || (ui_str_eq(a->label, b->label) && ui_str_eq(a->value, b->value)
+                           && a->v == b->v && a->max == b->max && a->bip == b->bip);
+}
+
+/* a knob change redraws only that knob (60 x 80 below the title, ~4x less on the SPI); anything else (a new
+ * title or note, text wider than a knob's column, another screen drawn over these rows) redraws the page */
 static void ui_page(const char *title, const knob_view_t *k, const char *note)
 {
-    int32_t tw = text_w(&FONT_S, title), i;
+    static knob_view_t last[4];
+    static char last_title[24], last_note[16];
+    static uint32_t valid;
+    int32_t tw = text_w(&FONT_S, title), i, full;
+    full = !valid || lcd_knob_hits || !ui_str_eq(title, last_title) || !ui_str_eq(note ? note : "", last_note);
+    for (i = 0; i < 4 && !full; i++)
+        if (k[i].present && (text_w(&FONT_S, k[i].label) > 60 || text_w(&FONT_S, k[i].value) > 60)) full = 1;
+    if (!full) {
+        for (i = 0; i < 4; i++)
+            if (!knob_same(&k[i], &last[i])) {
+                cv_begin(60, 80, C_PANEL);
+                if (k[i].present) cv_knob(30, 44, k[i].label, k[i].value, k[i].v, k[i].max, k[i].bip);
+                cv_blit(60 * (uint32_t)i, 64);
+                last[i] = k[i];
+                app_idle();
+            }
+        lcd_knob_hits = 0;
+        return;
+    }
+    for (i = 0; i < 4; i++) last[i] = k[i];
+    ui_str_cpy(last_title, title, sizeof last_title);
+    ui_str_cpy(last_note, note ? note : "", sizeof last_note);
+    valid = 1;
     cv_begin(240, 98, C_PANEL);
     cv_rect(6, 9, (240 - tw) / 2 - 14, 1, C_RULE);
     cv_text((240 - tw) / 2, 1, &FONT_S, title, C_AMBER);
@@ -216,6 +250,7 @@ static void ui_page(const char *title, const knob_view_t *k, const char *note)
     if (note)
         cv_text(240 - 4 - text_w(&FONT_S, note), 1, &FONT_S, note, C_RED);
     cv_blit(0, 46);
+    lcd_knob_hits = 0;
 }
 
 /* AIRA Studio Oscilloscope: phosphor dual-trace wave with subtle oscilloscope graticule grid */

@@ -68,6 +68,8 @@ static void lcd_window(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1)
 }
 
 static uint16_t lcd_fillbuf[240];
+static uint32_t lcd_knob_hits;      /* draws over the knob rows (46..143): ui_page then redraws the whole page */
+#define LCD_KNOB_HIT(y, h) do { if ((y) < 144u && (y) + (h) > 46u) lcd_knob_hits++; } while (0)
 
 static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 {
@@ -75,6 +77,7 @@ static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
     sw = (uint16_t)((c >> 8) | (c << 8));
     if (!w || !h || x >= 240u || y >= 240u)
         return;
+    LCD_KNOB_HIT(y, h);
     if (x + w > 240u)
         w = 240u - x;
     if (y + h > 240u)
@@ -95,6 +98,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 {
     if (!w || !h)
         return;
+    LCD_KNOB_HIT(y, h);
     lcd_window(x, y, x + w - 1u, y + h - 1u);
     lcd_data(px, w * h * 2u);
 }

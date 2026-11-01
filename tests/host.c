@@ -85,9 +85,12 @@ static inline int32_t platform_battery_bars(void) { return 4; }
 /* the screen: 240 x 240 RGB565, as the ST7789 gets it (gfx.c sends the bytes swapped) */
 static uint16_t fb[240 * 240];
 static void lcd_sync(void) {}
+static uint32_t lcd_knob_hits;      /* as lcd.c: draws over the knob rows (46..143) */
+#define LCD_KNOB_HIT(y, h) do { if ((y) < 144u && (y) + (h) > 46u) lcd_knob_hits++; } while (0)
 static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 {
     uint32_t i, j;
+    LCD_KNOB_HIT(y, h);
     for (j = y; j < y + h && j < 240u; j++)
         for (i = x; i < x + w && i < 240u; i++)
             fb[j * 240u + i] = c;
@@ -95,6 +98,7 @@ static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *px)
 {
     uint32_t i, j;
+    LCD_KNOB_HIT(y, h);
     for (j = 0; j < h; j++)
         for (i = 0; i < w; i++)
             if (x + i < 240u && y + j < 240u) {
