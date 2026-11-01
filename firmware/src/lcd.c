@@ -7,7 +7,7 @@
  * while the last strip of a frame goes out. */
 /* pins and SPI1: hal/fm1_lcd_hw.h */
 #ifndef LCD_BAUD
-#define LCD_BAUD 4u                /* lsb/(BAUD+1): 4 = 12 MHz */
+#define LCD_BAUD 1u                /* lsb/(BAUD+1): 1 = 30 MHz (was 4 = 12 MHz; the ST7789 takes ~62 MHz) */
 #endif
 
 static uint8_t lcd_small[64];
